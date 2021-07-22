@@ -8,27 +8,30 @@ allowances: HashMap[address, HashMap[address, uint256]]
 
 @external
 def __init__():
-    self.owner == msg.sender
+    self.owner = msg.sender
 
 
 @external
+@view
 def addr_amount() -> uint256:
-    return ledger[msg.sender]
+    return self.ledger[msg.sender]
 
 
 @external
+@view
 def supply_left() -> uint256:
-    return MAX_SUPPLY - distributed_supply
+    return MAX_SUPPLY - self.distributed_supply
 
 @external
-def view_allowance(_from: address) -> uinit256:
+@view
+def view_allowance(_from: address) -> uint256:
     return self.allowances[_from][msg.sender]
 
 
-@internal
-def distribute_token(amount: unit256, to: address) -> uint256:
+@external
+def distribute_token(amount: uint256, to: address) -> uint256:
     # Assert that only the sender can distribute tookens and that there are enough to distribute
-    assert msg.sender == owner, "Only the owner can distribute tokens"
+    assert msg.sender == self.owner, "Only the owner can distribute tokens"
     assert amount <= (MAX_SUPPLY - self.distributed_supply), "There's not enough tokens to distribute"
 
     # Add the amount to the corresponding address, we add the distribute_supply var to keep track
@@ -41,7 +44,7 @@ def distribute_token(amount: unit256, to: address) -> uint256:
 
 @external
 def transfer_token(amount: uint256, to: address) -> uint256:
-    assert msg.sender != owner, "Owner can only initially distribute, it should not transfer on their own accord"
+    assert msg.sender != self.owner, "Owner can only initially distribute, it should not transfer on their own accord"
     assert amount <= self.ledger[msg.sender], "Sender of funds must have enough tokens to transfer"
 
     # We substract amount from the sender and add that same amount to the receiver
@@ -67,24 +70,24 @@ def transfer_from(amount: uint256, _from: address, _to: address) -> bool:
     self.allowances[_from][msg.sender] -= amount
     return True
 
-
+# Could potentially return the amount of the address that received and then be called later on increase/decrease allowance functions
 @internal
-def approve(amount: uint256, to: address) -> uint256:
-    assert msg.sender != ZERO_ADDRESS
+def approve(_from: address, amount: uint256, to: address):
+    assert _from != ZERO_ADDRESS
     assert to != ZERO_ADDRESS
-    assert amount <= self.ledger[msg.sender], "You can't give allowance at an amount of which you don't have"
+    # assert amount <= self.ledger[_from], "You can't give allowance at an amount of which you don't have"
 
-    self.ledger[msg.sender][to] = amount
+    self.allowances[_from][to] = amount
 
 
 @external
 def increase_allowance(amount: uint256, to: address) -> bool:
-    self.approve((self.allowances[msg.sender][to] + amount), to)
+    self.approve(msg.sender, (self.allowances[msg.sender][to] + amount), to)
     return True
 
 
 @external
 def decrease_allowance(amount: uint256, to: address) -> bool:
-    self.approve((self.allowances[msg.sender][to] - amount), to)
+    self.approve(msg.sender, (self.allowances[msg.sender][to] - amount), to)
     return True
 
